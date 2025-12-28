@@ -1,13 +1,6 @@
 // Firebase Configuration with Google Authentication for Chrome Extension
+// Using REST API for Realtime Database to avoid CSP issues in Manifest V3
 import { initializeApp } from "firebase/app";
-import {
-  getDatabase,
-  ref,
-  push,
-  set,
-  remove,
-  onValue,
-} from "firebase/database";
 import {
   getAuth,
   signInWithCredential,
@@ -28,10 +21,151 @@ const firebaseConfig = {
   appId: "1:462884445494:web:6ec5cb599b5b2b1dcca797",
 };
 
-// Initialize Firebase
+// Initialize Firebase (Auth only - we'll use REST for database)
 const app = initializeApp(firebaseConfig);
-const database = getDatabase(app);
 const auth = getAuth(app);
+
+// Database URL for REST API
+const DATABASE_URL = firebaseConfig.databaseURL;
+
+/**
+ * REST API wrapper for Firebase Realtime Database
+ * This avoids CSP issues caused by Firebase SDK's long-polling transport
+ */
+
+// Helper to get auth token for authenticated requests
+const getAuthToken = async () => {
+  const user = auth.currentUser;
+  if (user) {
+    return await user.getIdToken();
+  }
+  return null;
+};
+
+// Build URL with optional auth token
+const buildUrl = (path, token) => {
+  let url = `${DATABASE_URL}/${path}.json`;
+  if (token) {
+    url += `?auth=${token}`;
+  }
+  return url;
+};
+
+// Database reference helper (mimics Firebase SDK ref)
+const ref = (db, path) => {
+  return { path: path || "" };
+};
+
+// Push new data (mimics Firebase SDK push)
+const push = async (refObj, data) => {
+  const token = await getAuthToken();
+  const url = buildUrl(refObj.path, token);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Firebase push failed: ${response.statusText}`);
+  }
+
+  const result = await response.json();
+  return { key: result.name };
+};
+
+// Set data at path (mimics Firebase SDK set)
+const set = async (refObj, data) => {
+  const token = await getAuthToken();
+  const url = buildUrl(refObj.path, token);
+
+  const response = await fetch(url, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Firebase set failed: ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Remove data at path (mimics Firebase SDK remove)
+const remove = async (refObj) => {
+  const token = await getAuthToken();
+  const url = buildUrl(refObj.path, token);
+
+  const response = await fetch(url, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Firebase remove failed: ${response.statusText}`);
+  }
+};
+
+// Subscribe to data changes using polling (mimics Firebase SDK onValue)
+// Note: REST API doesn't support real-time, so we poll every 2 seconds
+const onValue = (refObj, callback, errorCallback) => {
+  let isActive = true;
+  let lastData = null;
+
+  const fetchData = async () => {
+    if (!isActive) return;
+
+    try {
+      const token = await getAuthToken();
+      const url = buildUrl(refObj.path, token);
+
+      const response = await fetch(url);
+
+      if (!response.ok) {
+        if (errorCallback) {
+          errorCallback(
+            new Error(`Firebase read failed: ${response.statusText}`)
+          );
+        }
+        return;
+      }
+
+      const data = await response.json();
+
+      // Only trigger callback if data has changed
+      const dataStr = JSON.stringify(data);
+      if (dataStr !== lastData) {
+        lastData = dataStr;
+        // Create a snapshot-like object
+        callback({
+          val: () => data,
+          exists: () => data !== null,
+        });
+      }
+    } catch (error) {
+      console.error("Firebase polling error:", error);
+      if (errorCallback) {
+        errorCallback(error);
+      }
+    }
+  };
+
+  // Initial fetch
+  fetchData();
+
+  // Poll every 2 seconds
+  const intervalId = setInterval(fetchData, 2000);
+
+  // Return unsubscribe function
+  return () => {
+    isActive = false;
+    clearInterval(intervalId);
+  };
+};
+
+// Dummy database object for API compatibility
+const database = { app };
 
 /**
  * Sign in with Google using Chrome Extension's identity API

@@ -18,15 +18,15 @@ function App() {
 
   // Get the effective room ID based on auth mode
   // Google auth: uses plain UID (matches mobile web app)
-  // Room ID mode: uses public_ prefix for public shared rooms
+  // Room ID mode: uses simple room ID (matches webapp)
   const getEffectiveRoomId = () => {
     if (authMode === 'google' && user) {
       // Use plain UID - matches mobile web app path: rooms/${uid}/clips
       return user.uid;
     }
     if (authMode === 'room' && roomId) {
-      // Public room with prefix for differentiation
-      return `public_${roomId}`;
+      // Use simple room ID - matches webapp path: rooms/${roomId}/clips
+      return roomId;
     }
     return null;
   };
