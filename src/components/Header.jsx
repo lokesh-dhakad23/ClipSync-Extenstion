@@ -94,19 +94,21 @@ const Header = ({ user, onSignIn, onSignOut, isLoading }) => {
                     Scan to open Web App
                   </p>
                   <div className="flex justify-center">
-                    <img 
-                      src="https://api.qrserver.com/v1/create-qr-code/?color=000000&bgcolor=FFFFFF&data=https://clipsyncwebapp.netlify.app&qzone=1&margin=0&size=120x120&ecc=L" 
-                      alt="Scan to open ClipSync Web App"
+                  <img 
+                      src="https://api.qrserver.com/v1/create-qr-code/?color=000000&amp;bgcolor=FFFFFF&amp;data=clipsyncapp.netlify.app&amp;qzone=1&amp;margin=0&amp;size=400x400&amp;ecc=L" 
+                      alt="Scan to open ClipSync Web App" 
                       className="w-28 h-28 rounded"
-                    />
+                      />
                   </div>
+
+                  
                   <a 
-                    href="https://clipsyncwebapp.netlify.app" 
+                    href="https://clipsyncapp.netlify.app" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="mt-3 block text-center text-xs text-sg-blue-600 hover:text-sg-blue-800 hover:underline font-medium"
                   >
-                    clipsyncwebapp.netlify.app
+                    clipsyncapp.netlify.app
                   </a>
                 </motion.div>
               )}
